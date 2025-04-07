@@ -15,7 +15,7 @@
 ```bash
 git clone https://github.com/Zestria/mywm.git
 cd mywm
-g++ mywm.cpp -lX11 -o mywm
+g++ mywm.cpp -lX11 -o mywm -std=c++20
 # запускаться с tty
 startx ./mywm
 ```
@@ -23,3 +23,4 @@ startx ./mywm
 ## В скором времени
 - **Тайлинг**: Добавлю другие варианты разделения окон
 - **Workspaces**: Несколько рабочих столов
+- **Status bar**: прицеплю готовый и добавлю rofi

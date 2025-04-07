@@ -10,7 +10,6 @@
 #include <algorithm>
 
 constexpr const char* LOG_PATH = "/tmp/mywm.log";
-constexpr int MAX_KEYCODE_TRIES = 3;
 
 std::ofstream logfile;
 
@@ -19,31 +18,38 @@ void log_message(const std::string& message) {
     std::cout << message << std::endl;
 }
 
-KeyCode get_keycode_with_fallback(Display *display, const KeySym *keysyms, size_t n) {
-    for(size_t i = 0; i < n; i++) {
-        KeyCode kc = XKeysymToKeycode(display, keysyms[i]);
-        if(kc!=0) return kc;
-    }
-    return 0;
-}
-
-KeyCode win_key, enter_key;
+KeyCode enter_key, q_key;
 
 void setup_hotkeys(Display *display, Window root) {
 
-    const KeySym SUPER_KEYS[] = {XK_Super_L, XK_Meta_L, XK_Hyper_L};
-    win_key = get_keycode_with_fallback(display, SUPER_KEYS, sizeof(SUPER_KEYS)/sizeof(SUPER_KEYS[0]));
-
-    win_key = XKeysymToKeycode(display, XK_Super_L);
     enter_key = XKeysymToKeycode(display, XK_Return);
+    q_key = XKeysymToKeycode(display, XK_q);
 
-    if (enter_key == 0 || win_key == 0) {
-        log_message("ERROR: Failed to bind hotkeys\n");
+    if (enter_key == 0 || q_key == 0) {
+        log_message("ERROR: Failed to bind hotkeys");
         return;
     }
 
+    XUngrabKey(display, AnyKey, AnyModifier, root);
+
     if( XGrabKey(display, enter_key, Mod4Mask, root, True, GrabModeAsync, GrabModeAsync) != 0 ) {
         log_message("ERROR: Failed to grab Win+Enter");
+    }
+    if( XGrabKey(display, q_key, Mod4Mask, root, True, GrabModeAsync, GrabModeAsync) != 0) {
+        log_message("ERROR: Failed to grab Win+Q");
+    }
+}
+
+void setup_mouse(Display *display, Window root) {
+    XUngrabButton(display, AnyButton, AnyModifier, root);
+
+    if(XGrabButton(display, Button1, Mod4Mask, root, True,
+                ButtonPressMask | ButtonReleaseMask | PointerMotionMask,
+                GrabModeAsync, GrabModeAsync, None, None) != 0) 
+    {
+        log_message("Error: Failed to grab mouse button");
+    } else {
+        log_message("Mouse button grabbed succesfully");
     }
 }
 
@@ -59,7 +65,8 @@ void tile_windows(Display* display, Window root)  {
     const int width = root_attrs.width;
     const int height = root_attrs.height;
 
-    const int win_width = width / managed_windows.size();
+    const int win_width = width / std::max( (int)managed_windows.size(), 1 );
+
     for(size_t i = 0; i < managed_windows.size(); ++i) {
         XMoveResizeWindow(display, managed_windows[i], i * win_width, 0, win_width, height);
     }
@@ -73,7 +80,10 @@ void focus_window(Display *display, Window window) {
         log_message("Focus failed: bad window " + std::to_string(window));
     }
 
-    XSetInputFocus(display, window, RevertToPointerRoot, CurrentTime);
+    if(XSetInputFocus(display, window, RevertToPointerRoot, CurrentTime) == BadWindow) {
+        log_message("Failed to set focus to window " + std::to_string(window));
+        return;
+    }
     XSetWindowBorder(display, window, WhitePixel(display, DefaultScreen(display)));
 
     if(focused_window != None && focused_window != window) {
@@ -87,23 +97,27 @@ void focus_window(Display *display, Window window) {
     log_message("Focused window: "+ std::to_string(window));
 }
 
-void remove_window(Display* display, Window window, Window root) {
-
+void safe_destroy_window(Display *display, Window window, Window root) {
+    if(window == None) {
+        log_message("Attempt to destroy None window");
+        return;
+    }
+    
     XWindowAttributes attrs;
-    if(window != None && !XGetWindowAttributes(display, window, &attrs)) {
-        log_message("Remove failed: bad window" + std::to_string(window));
+    if( !XGetWindowAttributes(display, window, &attrs) ) {
+        log_message("Remove failed: window " + std::to_string(window) + " doesn't exist");
         return;
     }
 
-    managed_windows.erase(
-        std::remove(managed_windows.begin(), managed_windows.end(), window),
-        managed_windows.end()
-    );
+    std::erase(managed_windows, window);
 
     if(focused_window == window) {
         focused_window = None;
         XSetInputFocus(display, root, RevertToPointerRoot, CurrentTime);
     }
+
+    XDestroyWindow(display, window);
+    XSync(display, False);
 
     tile_windows(display, root);
     log_message("Window removed: " + std::to_string(window));
@@ -141,11 +155,10 @@ int main() {
         SubstructureNotifyMask | 
         StructureNotifyMask |
         KeyPressMask | 
-        ButtonPressMask);
+        ButtonPressMask
+    );
 
     setup_hotkeys(display, root);
-
-    
 
     XEvent event;
     while(true) {
@@ -155,7 +168,21 @@ int main() {
             switch(event.type) {
                 case MapRequest: {
                     Window child = event.xmaprequest.window;
-                    XMapWindow(display, child);
+
+                    XWindowAttributes attrs;
+                    XGetWindowAttributes(display, child, &attrs);
+                    if(attrs.override_redirect) {
+                        log_message("Ignoring override_redirect window");
+                        XMapWindow(display, child);
+                        break;
+                    }
+
+                    XSelectInput(display, child, 
+                        StructureNotifyMask |
+                        ButtonPressMask);
+                    if( XMapWindow(display, child) == BadAccess) {
+                        log_message("Failed to map window: BadAccess");
+                    }
 
                     if(std::find(managed_windows.begin(), managed_windows.end(), child) == managed_windows.end()) {
                         managed_windows.push_back(child);
@@ -166,7 +193,7 @@ int main() {
                     if(focused_window == None) {
                         focus_window(display, child);
                     } else {
-                        XSetWindowBorder(display, child, BlackPixel(display, 0));
+                        XSetWindowBorder(display, child, BlackPixel(display, DefaultScreen(display)));
                     }
 
                     break;
@@ -190,8 +217,9 @@ int main() {
                     break;
                 }
                 case DestroyNotify: {
-                    Window dead_window = event.xdestroywindow.window;
-                    remove_window(display, dead_window, root);
+                    //Window dead_window = event.xdestroywindow.window;
+                    //remove_window(display, dead_window, root);
+
                     break;
                 }
                 case KeyPress: {
@@ -199,20 +227,33 @@ int main() {
     
                     if(key_event.keycode == enter_key && (key_event.state & Mod4Mask)) {
                         system("alacritty &");
+                    } else if(key_event.keycode == q_key && (key_event.state & Mod4Mask)) {
+                        if(focused_window != None) {
+                            log_message("Closing window: " + std::to_string(focused_window));
+                            //XDestroyWindow(display, focused_window);
+                            safe_destroy_window(display, focused_window, root);
+                        }
                     }
                     break;
                 }
                 case ButtonPress: {
-                    Window clicked_window = event.xbutton.window;
-                    if(clicked_window != root) {
-                        focus_window(display, clicked_window);
+                    Window target = event.xbutton.subwindow ? event.xbutton.subwindow : event.xbutton.window;
+
+                    log_message("ButtonPress on: windows=" + std::to_string(event.xbutton.window) + 
+                                "subwindow=" + std::to_string(event.xbutton.subwindow));
+
+                    if( target != None && 
+                        target != root && 
+                        std::find(managed_windows.begin(), managed_windows.end(), target) != managed_windows.end() ) 
+                    {
+                        focus_window(display, target);
                     }
                     break;
                 }
                 case UnmapNotify: {
                     Window unmapped = event.xunmap.window;
                     if(event.xunmap.send_event) break; // Игнорируем события не от сервера
-                    remove_window(display, unmapped, root);
+                    //remove_window(display, unmapped, root);
                 }
                 
             }
