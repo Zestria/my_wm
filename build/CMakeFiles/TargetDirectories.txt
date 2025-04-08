@@ -1,3 +1,0 @@
-/home/slave/repos/my_wm/build/CMakeFiles/my_wm.dir
-/home/slave/repos/my_wm/build/CMakeFiles/edit_cache.dir
-/home/slave/repos/my_wm/build/CMakeFiles/rebuild_cache.dir
