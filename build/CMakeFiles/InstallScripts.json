@@ -1,0 +1,7 @@
+{
+	"InstallScripts" : 
+	[
+		"/home/slave/repos/my_wm/build/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
