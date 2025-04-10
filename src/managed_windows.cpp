@@ -3,10 +3,47 @@
 #include "config.hpp"
 
 ManagedWindow::ManagedWindow(Display* display, Window window)
-    : display_(display), window_(window)
+    : display_(display), window_(window), frame_(0), is_framed_(false)
 {
     XSetWindowBorderWidth(display_, window_, wm_constants::BORDER_WIDTH);
     Unfocus();
+}
+
+ManagedWindow::~ManagedWindow() {
+    if(is_framed_) {
+        XUnmapWindow(display_, frame_);
+        XReparentWindow(display_, window_, XRootWindow(display_, XDefaultScreen(display_)), 0, 0);
+        XDestroyWindow(display_, frame_);
+    }
+
+    Logger::Global().Log("Destroyed ManagedWindow for X11 window " + std::to_string(window_),
+                        log_level::DEBUG);
+}
+
+void ManagedWindow::CreateFrame(Window root) {
+    if(is_framed_) return;
+
+    XWindowAttributes attrs;
+    if(!XGetWindowAttributes(display_, window_, &attrs)) {
+        Logger::Global().Log("Failed to get window attributes for framing", log_level::ERROR);
+        return;
+    }
+
+    frame_ = XCreateSimpleWindow(
+        display_, root, 
+        attrs.x, attrs.y, attrs.width, attrs.height, 
+        wm_constants::FRAME_BORDER_WIDTH,
+        wm_constants::FRAME_BORDER_COLOR,
+        wm_constants::FRAME_BG_COLOR);
+
+    XSelectInput(display_, frame_, 
+        SubstructureRedirectMask | ButtonPressMask);
+                            
+    XReparentWindow(display_, window_, frame_, 0, 0);
+    XMapWindow(display_, frame_);
+    is_framed_ = true;
+
+    Logger::Global().Log("Create frame for window " + std::to_string(window_), log_level::DEBUG);
 }
 
 void ManagedWindow::Focus() {
@@ -23,7 +60,12 @@ void ManagedWindow::Unfocus() {
 }
 
 void ManagedWindow::MoveResize(int x, int y, int w, int h) {
-    XMoveResizeWindow(display_, window_, x, y, w, h);
+    if(is_framed_) {
+        XMoveResizeWindow(display_, frame_, x, y, w, h);
+        XMoveResizeWindow(display_, window_, 0, 0, w, h);
+    } else {
+        XMoveResizeWindow(display_, window_, x, y, w, h); // возможно такое и не выполняется никогда
+    }
 
     Logger::Global().Log(
         "Moved window " + std::to_string(window_) + 
@@ -38,6 +80,15 @@ void ManagedWindow::Open() {
 }
 
 void ManagedWindow::Close() {
+    if(is_framed_) {
+        XUnmapWindow(display_, frame_);
+        XReparentWindow(display_, window_, XRootWindow(display_, XDefaultScreen(display_)), 0, 0);
+        XDestroyWindow(display_, frame_);
+        frame_ = 0;
+        is_framed_ = false;
+        Logger::Global().Log("Destroyed frame for window " + std::to_string(window_), log_level::DEBUG);
+    }
+
     XDestroyWindow(display_, window_);
     Logger::Global().Log("Closed window: " + std::to_string(window_), log_level::INFO);
 } 

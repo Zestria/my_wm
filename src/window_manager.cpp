@@ -1,5 +1,7 @@
 #include <X11/keysym.h>
 #include <algorithm>
+#include <unistd.h>
+#include <cstdlib>
 
 #include "window_manager.hpp"
 #include "managed_windows.hpp"
@@ -20,7 +22,7 @@ std::unique_ptr<WindowManager> WindowManager::Create() {
 WindowManager::WindowManager(Display* display) :
     display_(display),
     root_(DefaultRootWindow(display_)),
-    focused_window_(display_, None) {
+    focused_index_(-1) {
     
     Logger::Global().setLogFile(wm_constants::LOG_PATH);
 
@@ -32,7 +34,13 @@ WindowManager::WindowManager(Display* display) :
         KeyPressMask
     );
 
-    XGrabKey(display_, XKeysymToKeycode(display_, wm_constants::CLOSE_KEY),
+    XGrabKey(display_, XKeysymToKeycode(display_, wm_constants::CLOSE_WM_KEY),
+    wm_constants::MOD_KEY, root_, True, GrabModeAsync, GrabModeAsync);
+
+    XGrabKey(display_, XKeysymToKeycode(display_, wm_constants::CLOSE_WIN_KEY),
+    wm_constants::MOD_KEY, root_, True, GrabModeAsync, GrabModeAsync);
+
+    XGrabKey(display_, XKeysymToKeycode(display_, wm_constants::OPEN_WIN_KEY),
     wm_constants::MOD_KEY, root_, True, GrabModeAsync, GrabModeAsync);
     
     Logger::Global().Log("WindowManager initialized", log_level::INFO);
@@ -40,6 +48,10 @@ WindowManager::WindowManager(Display* display) :
 
 WindowManager::~WindowManager() {
     if(display_) {
+
+        for(auto window : windows_)
+            window.Close();
+
         XCloseDisplay(display_);
         Logger::Global().Log("Display connection closed", log_level::INFO);
     }
@@ -79,13 +91,17 @@ void WindowManager::OnMapRequest(const XMapRequestEvent& e) {
     }
 
     windows_.emplace_back(std::move(window));
+    windows_.back().CreateFrame(root_);
     windows_.back().Open();
     windows_.back().SetEventMask(ButtonPressMask | ExposureMask);
 
+    windows_.back().Focus();
+    focused_index_ = (int)windows_.size()-1;
+    
     TileWindows();
 }
 
-void WindowManager::OnConfigureRequest(const XConfigureRequestEvent& e) {
+void WindowManager::OnConfigureRequest(const XConfigureRequestEvent& e) { // заменить XConfigureWindow
     XWindowChanges changes = {
         .x = e.x,
         .y = e.y,
@@ -99,10 +115,9 @@ void WindowManager::OnConfigureRequest(const XConfigureRequestEvent& e) {
 }
 
 void WindowManager::OnKeyPress(const XKeyEvent& e) {
-    
     KeySym keysym = x11_utils::EventProcessor::GetKeysymFromEvent(e);
 
-    if(keysym == wm_constants::CLOSE_KEY && (e.state & wm_constants::MOD_KEY)) {
+    if(keysym == wm_constants::CLOSE_WM_KEY && (e.state & wm_constants::MOD_KEY)) {
         Logger::Global().Log("Shutting down WindowManager", log_level::INFO);
 
         for(ManagedWindow win : windows_)
@@ -112,11 +127,19 @@ void WindowManager::OnKeyPress(const XKeyEvent& e) {
         display_ = nullptr;
 
         exit(EXIT_SUCCESS);
+    } 
+    else if(keysym == wm_constants::CLOSE_WIN_KEY && (e.state & wm_constants::MOD_KEY) && focused_index_ >= 0) {
+        Logger::Global().Log("Closing window " + std::to_string(windows_[focused_index_].GetX11Window()), log_level::INFO);
+        windows_[focused_index_].Close();
+        windows_.erase(windows_.begin()+focused_index_);
+    }
+    else if(keysym == wm_constants::OPEN_WIN_KEY && (e.state & wm_constants::MOD_KEY)) {
+        LaunchApplication(wm_constants::TERMINAL);
     }
 }
 
 void WindowManager::OnButtonPress(const XButtonEvent& e) {
-    if(e.window == root_) return;
+    if(e.window == root_) return; 
 
     auto it = std::find_if(
         windows_.begin(), windows_.end(), x11_utils::WindowFinder::MakeFinder(e.window)
@@ -128,18 +151,12 @@ void WindowManager::OnButtonPress(const XButtonEvent& e) {
         return;
     }
 
-    if(focused_window_.isFocused()) {
-        auto prev = std::find_if(
-            windows_.begin(), windows_.end(), x11_utils::WindowFinder::MakeFinder(e.window)
-        );
-        if(prev != windows_.end())
-            prev->Unfocus();
-    }
+    windows_[focused_index_].Unfocus();
 
-    focused_window_ = *it;
-    focused_window_.Focus();
+    focused_index_ = (int)(it - windows_.begin());
+    windows_[focused_index_].Focus();
     
-    Logger::Global().Log("Focused window: " + std::to_string(focused_window_.GetX11Window()), log_level::INFO);
+    Logger::Global().Log("Focused window: " + std::to_string(windows_[focused_index_].GetX11Window()), log_level::INFO);
 }
 
 void WindowManager::TileWindows() {
@@ -149,7 +166,21 @@ void WindowManager::TileWindows() {
     int height = DisplayHeight(display_, DefaultScreen(display_));
     int tile_width = width / windows_.size();
 
-    for(size_t i = 0; i < windows_.size(); ++i) {
+    for(size_t i = 0; i < windows_.size(); ++i)
         windows_[i].MoveResize(i*tile_width, 0, width, height);
+}
+
+void WindowManager::LaunchApplication(const std::string& command) {
+    pid_t pid = fork();
+    if(pid == 0) {
+        setsid();
+        execlp(command.c_str(), command.c_str(), nullptr);
+        exit(EXIT_FAILURE);
+    }
+    else if(pid > 0) {
+        Logger::Global().Log("Launched application: " + command, log_level::INFO);
+    }
+    else {
+        Logger::Global().Log("Failed to launch: " + command, log_level::ERROR);
     }
 }

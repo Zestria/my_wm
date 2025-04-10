@@ -1,5 +1,6 @@
 #pragma once
 
+#include <unordered_map>
 #include <vector>
 #include <memory>
 #include <fstream>
@@ -13,7 +14,10 @@ private:
     Display* display_;
     Window root_;
     std::vector<ManagedWindow> windows_;
-    ManagedWindow focused_window_;
+    int focused_index_;
+
+    void FrameWindow(Window w);
+    void UnframeWindow(Window w);
     
     explicit WindowManager(Display* display);
     
@@ -22,6 +26,8 @@ private:
     void OnButtonPress(const XButtonEvent& e);
     void OnKeyPress(const XKeyEvent& e);
     void TileWindows();
+
+    void LaunchApplication(const std::string& command);
     
 public:
     static std::unique_ptr<WindowManager> Create();

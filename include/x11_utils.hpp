@@ -35,7 +35,7 @@ public:
     explicit WindowFinder(Window target) : target_(target) {}
 
     bool operator()(const ManagedWindow& w) const {
-        return w.GetX11Window() == target_;
+        return w.GetFrame() == target_;
     }
     static auto MakeFinder(Window target) {
         return [target](const ManagedWindow& w) {
