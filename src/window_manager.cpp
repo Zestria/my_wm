@@ -42,6 +42,9 @@ WindowManager::WindowManager(Display* display) :
 
     XGrabKey(display_, XKeysymToKeycode(display_, wm_constants::OPEN_WIN_KEY),
     wm_constants::MOD_KEY, root_, True, GrabModeAsync, GrabModeAsync);
+
+    XGrabKey(display_, XKeysymToKeycode(display_, wm_constants::OPEN_LAUNCH_KEY),
+    wm_constants::MOD_KEY, root_, True, GrabModeAsync, GrabModeAsync);
     
     Logger::Global().Log("WindowManager initialized", log_level::INFO);
 }
@@ -142,6 +145,9 @@ void WindowManager::OnKeyPress(const XKeyEvent& e) {
     }
     else if(keysym == wm_constants::OPEN_WIN_KEY && (e.state & wm_constants::MOD_KEY)) {
         LaunchApplication(wm_constants::TERMINAL);
+    }
+    else if(keysym == wm_constants::OPEN_LAUNCH_KEY && (e.state & wm_constants::MOD_KEY)) {
+        LaunchApplication(wm_constants::LAUNCHER);
     }
 }
 
