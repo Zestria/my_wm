@@ -48,7 +48,6 @@ WindowManager::WindowManager(Display* display) :
 
 WindowManager::~WindowManager() {
     if(display_) {
-
         for(auto window : windows_)
             window.Close();
 
@@ -93,7 +92,11 @@ void WindowManager::OnMapRequest(const XMapRequestEvent& e) {
     windows_.emplace_back(std::move(window));
     windows_.back().CreateFrame(root_);
     windows_.back().Open();
-    windows_.back().SetEventMask(ButtonPressMask | ExposureMask);
+    windows_.back().SetEventMask(ButtonPressMask);
+
+    if(focused_index_ != -1) {
+        windows_[focused_index_].Unfocus();
+    }
 
     windows_.back().Focus();
     focused_index_ = (int)windows_.size()-1;
@@ -129,9 +132,13 @@ void WindowManager::OnKeyPress(const XKeyEvent& e) {
         exit(EXIT_SUCCESS);
     } 
     else if(keysym == wm_constants::CLOSE_WIN_KEY && (e.state & wm_constants::MOD_KEY) && focused_index_ >= 0) {
-        Logger::Global().Log("Closing window " + std::to_string(windows_[focused_index_].GetX11Window()), log_level::INFO);
-        windows_[focused_index_].Close();
-        windows_.erase(windows_.begin()+focused_index_);
+        if(focused_index_ != -1) {
+            Logger::Global().Log("Closing window " + std::to_string(windows_[focused_index_].GetX11Window()), log_level::INFO);
+            windows_[focused_index_].Close();
+            windows_.erase(windows_.begin()+focused_index_);
+            focused_index_ = -1;
+            TileWindows();
+        }
     }
     else if(keysym == wm_constants::OPEN_WIN_KEY && (e.state & wm_constants::MOD_KEY)) {
         LaunchApplication(wm_constants::TERMINAL);
@@ -140,6 +147,8 @@ void WindowManager::OnKeyPress(const XKeyEvent& e) {
 
 void WindowManager::OnButtonPress(const XButtonEvent& e) {
     if(e.window == root_) return; 
+
+    Logger::Global().Log("Pressed on window : " + std::to_string(e.window), log_level::DEBUG);
 
     auto it = std::find_if(
         windows_.begin(), windows_.end(), x11_utils::WindowFinder::MakeFinder(e.window)
@@ -151,12 +160,13 @@ void WindowManager::OnButtonPress(const XButtonEvent& e) {
         return;
     }
 
-    windows_[focused_index_].Unfocus();
+    if(focused_index_ != -1)
+        windows_[focused_index_].Unfocus();
 
     focused_index_ = (int)(it - windows_.begin());
     windows_[focused_index_].Focus();
     
-    Logger::Global().Log("Focused window: " + std::to_string(windows_[focused_index_].GetX11Window()), log_level::INFO);
+    Logger::Global().Log("Focused window: " + std::to_string(windows_[focused_index_].GetFrame()), log_level::INFO);
 }
 
 void WindowManager::TileWindows() {
@@ -167,7 +177,7 @@ void WindowManager::TileWindows() {
     int tile_width = width / windows_.size();
 
     for(size_t i = 0; i < windows_.size(); ++i)
-        windows_[i].MoveResize(i*tile_width, 0, width, height);
+        windows_[i].MoveResize(i*tile_width, 0, tile_width, height);
 }
 
 void WindowManager::LaunchApplication(const std::string& command) {

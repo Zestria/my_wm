@@ -12,7 +12,6 @@ private:
     bool is_framed_ = false;
 public:
     ManagedWindow(Display* display, Window window);
-    ~ManagedWindow();
     
     void Focus();
     void Unfocus();

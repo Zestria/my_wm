@@ -3,7 +3,7 @@
 #include <X11/keysym.h>
 
 namespace wm_constants {
-    constexpr const char* LOG_PATH = "/tmp/vm.log";
+    constexpr const char* LOG_PATH = "/tmp/mywm.log";
     constexpr const char* TERMINAL = "alacritty";
     constexpr const char* LAUNCHER = "rofi -show run";
     
@@ -22,9 +22,7 @@ namespace wm_constants {
     constexpr int FOCUS_DELAY_MS = 50;
 
     // Фреймы
-    constexpr int FRAME_BORDER_WIDTH = 3;
-    constexpr unsigned long FRAME_BORDER_COLOR = 0xff0000;
-    constexpr unsigned long FRAME_BG_COLOR = 0x0000ff;
+    constexpr unsigned long FRAME_BG_COLOR = 0xFFFFFF;
 
 }
 

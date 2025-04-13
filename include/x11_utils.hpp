@@ -29,17 +29,10 @@ public:
 };
 
 class WindowFinder {
-private:
-    Window target_;
 public:
-    explicit WindowFinder(Window target) : target_(target) {}
-
-    bool operator()(const ManagedWindow& w) const {
-        return w.GetFrame() == target_;
-    }
     static auto MakeFinder(Window target) {
         return [target](const ManagedWindow& w) {
-            return w.GetX11Window() == target;
+            return w.GetFrame() == target;
         };
     }
 };
