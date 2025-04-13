@@ -3,26 +3,27 @@
 #include <X11/keysym.h>
 
 namespace wm_constants {
+    // Paths and Applications
     constexpr const char* LOG_PATH = "/tmp/mywm.log";
     constexpr const char* TERMINAL = "alacritty";
     constexpr const char* LAUNCHER = "dmenu_run";
     
-    // Клавиши
-    constexpr int CLOSE_WM_KEY = XK_F4;
-    constexpr int CLOSE_WIN_KEY = XK_q;
-    constexpr int OPEN_WIN_KEY = XK_Return;
-    constexpr int OPEN_LAUNCH_KEY = XK_d;
-    constexpr unsigned MOD_KEY = Mod4Mask;
-
-    // Окна
-    constexpr int BORDER_WIDTH = 2;
-    constexpr unsigned long INACTIVE_BORDER = 0x222222;
-    constexpr unsigned long ACTIVE_BORDER = 0x00FF00;
-
-    // Тайминги
+    // Key Bindings (Mod = Super/Windows key)
+    constexpr int CLOSE_WM_KEY = XK_F4;      // Mod+F4
+    constexpr int CLOSE_WIN_KEY = XK_q;      // Mod+Q
+    constexpr int OPEN_WIN_KEY = XK_Return;  // Mod+Enter
+    constexpr int OPEN_LAUNCH_KEY = XK_d;    // Mod+D
+    constexpr unsigned MOD_KEY = Mod4Mask;   // Modifier key
+    
+    // Window Decoration
+    constexpr int BORDER_WIDTH = 2;                     // Frame border
+    constexpr unsigned long INACTIVE_BORDER = 0x222222; // Dark gray
+    constexpr unsigned long ACTIVE_BORDER = 0x00FF00;   // Bright green
+    
+    // Timing
     constexpr int FOCUS_DELAY_MS = 50;
-
-    // Фреймы
+    
+    // Frame Appearance
     constexpr unsigned long FRAME_BG_COLOR = 0xFFFFFF;
 }
 

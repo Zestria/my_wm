@@ -11,31 +11,39 @@
 class WindowManager 
 {
 private:
-    Display* display_;
-    Window root_;
-    std::vector<ManagedWindow> windows_;
-    int focused_index_;
+    Display* display_;          // Connection to X server
+    Window root_;               // Root window reference
+    
+    // Window Management
+    std::vector<ManagedWindow> windows_;  // Tracked windows
+    int focused_index_;         // Index of focused window
 
+    // Frame Management
     void FrameWindow(Window w);
     void UnframeWindow(Window w);
     
+    // Private constructor (use Create() factory)
     explicit WindowManager(Display* display);
     
-    void OnMapRequest(const XMapRequestEvent& e);
-    void OnConfigureRequest(const XConfigureRequestEvent& e);
-    void OnButtonPress(const XButtonEvent& e);
-    void OnKeyPress(const XKeyEvent& e);
-    void TileWindows();
+    // Event Handlers
+    void OnMapRequest(const XMapRequestEvent& e);         // New window mapping
+    void OnConfigureRequest(const XConfigureRequestEvent& e); // Resize/move
+    void OnButtonPress(const XButtonEvent& e);            // Mouse clicks
+    void OnKeyPress(const XKeyEvent& e);                  // Keyboard input
 
-    void LaunchApplication(const std::string& command);
+    void TileWindows(); // Arrange windows in tiled layout
+
+    void LaunchApplication(const std::string& command); // Start programs
     
 public:
+    // Factory Method
     static std::unique_ptr<WindowManager> Create();
     
+    // Prevent copying
     WindowManager(const WindowManager&) = delete;
     WindowManager& operator=(const WindowManager&) = delete;
     
     ~WindowManager();
     
-    void Run();
+    void Run(); // Event processing loop
 };
