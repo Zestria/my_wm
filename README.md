@@ -1,44 +1,38 @@
-# MyWM - Минималистичный X11 Оконный Менеджер
+# MyWM - Custom X11 Window Manager
 
-## 📝 Описание
+## Overview
 
-MyWM — это легковесный оконный менеджер для X11, написанный на C++ с использованием парадигм ООП.
+MyWM is a lightweight, tiling window manager for the X Window System written in modern C++ (C++20). It provides basic window management functionality with keyboard-driven control and simple window decorations.
 
-## 🛠️ Зависимости
+## Keyboard Controls
 
-- Компилятор C++17 (g++/clang)
+- Mod (Super/Windows key) + Enter: Launch terminal
+- Mod + D: Launch application launcher (dmenu)
+- Mod + Q: Close focused window
+- Mod + F4: Exit window manager
+
+## Build Requirements
+- C++20
 - Xlib (libx11-dev)
 - CMake (>= 3.10)
 
-*Для тестирования:*
-- Xephyr (xserver-xephyr)
-
-## 🚀 Сборка и Установка
+## Building and Installation
 
 ```bash
-# Клонировать репозиторий
+# Clone repo
 git clone https://github.com/Zestria/my_wm.git
 cd my_wm
 
-# Сборка
+# Build
 mkdir build && cd build
 cmake ..
 make
 
-# Запуск в Xephyr (рекомендуется для тестирования)
-Xephyr :1 -ac -br -noreset -screen 1280x720 &
-DISPLAY=:1 ./my_wm
+// Run
+startx ./my_wm
 ```
 
-## 📂 Структура проекта
-    mywm/
-    ├── include/               # Заголовочные файлы
-    │   ├── window_manager.hpp
-    │   ├── managed_window.hpp
-    │   └── ...
-    ├── src/                   # Исходный код
-    │   ├── main.cpp
-    │   ├── window_manager.cpp
-    │   └── ...
-    ├── CMakeLists.txt         # Конфигурация сборки
-    └── README.md              # Этот файл
+## Future Improvements
+- More layout modes
+- Workspaces
+- Fullscreen mode
