@@ -2,7 +2,7 @@
 
 ## Overview
 
-MyWM is a lightweight, tiling window manager for the X Window System written in modern C++ (C++20). It provides basic window management functionality with keyboard-driven control and simple window decorations.
+**MyWM** is a lightweight, tiling window manager for the X Window System written in modern C++ (C++20). It provides basic window management functionality with keyboard-driven control and simple window decorations.
 
 ## Demostration
 
@@ -10,10 +10,10 @@ https://github.com/user-attachments/assets/91701ff1-0881-4b74-a943-31d79404e77b
 
 ## Keyboard Controls
 
-- Mod (Super/Windows key) + Enter: Launch terminal
-- Mod + D: Launch application launcher (dmenu)
-- Mod + Q: Close focused window
-- Mod + F4: Exit window manager
+- **Win + Enter**: Launch terminal
+- **Win + D**: Launch application launcher (dmenu)
+- **Win + Q**: Close focused window
+- **Win + F4**: Exit window manager
 
 ## Build Requirements
 - C++20
